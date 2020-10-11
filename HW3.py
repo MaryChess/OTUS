@@ -21,36 +21,32 @@ if __name__ == "__main__":
 
     spark = SparkSession.builder.appName("SimpleApp").getOrCreate()
 
-    crimeFacts = spark.read\
+    crimeData = spark.read\
         .option("header", "true")\
         .option("inferSchema", "true")\
         .csv("boston_crimes/crime.csv")
 
-    #1 crimes_total - общее количество преступлений в этом районе
-    crimeFacts.groupBy('DISTRICT').count().select('DISTRICT', col('count')\
+    #1. crimes_total - общее количество преступлений в этом районе
+    crimeData.groupBy('DISTRICT').count().select('DISTRICT', col('count')\
                                                   .alias('crimes_total')).show()
 
 
-    #2 crimes_monthly - медиана числа преступлений в месяц в этом районе
-    crimeFacts.groupBy('DISTRICT','MONTH','YEAR','DAY_OF_WEEK').count()\
+    #2. crimes_monthly - медиана числа преступлений в месяц в этом районе
+    crimeData.groupBy('DISTRICT','MONTH','YEAR','DAY_OF_WEEK').count()\
         .select('DISTRICT','MONTH','YEAR', col('count').alias('n'))\
         .groupBy('DISTRICT','MONTH','YEAR')\
         .agg(expr('percentile_approx(n, 0.5)').alias('crimes_monthly')).show()
 
-
-    # 3 frequent_crime_types - три самых частых crime_type за всю историю
-    # наблюдений в этом районе, объединенных через запятую с одним пробелом “, ” ,
-    # расположенных в порядке убывания частоты
+    # 3. frequent_crime_types - три самых частых crime_type за всю историю
     offenseCodes = spark.read \
         .option("header", "true") \
         .option("inferSchema", "true") \
         .csv("boston_crimes/offense_codes.csv")
 
-
     split_col = split(offenseCodes['NAME'], '-')
     offenseCodes_mod = offenseCodes.withColumn('frequent_crime_types', split_col.getItem(0))
-    join_df = crimeFacts.join(broadcast(offenseCodes_mod),
-                              offenseCodes.CODE == crimeFacts.OFFENSE_CODE)\
+    join_df = crimeData.join(broadcast(offenseCodes_mod),
+                              offenseCodes.CODE == crimeData.OFFENSE_CODE)\
         .groupBy("DISTRICT","frequent_crime_types").count()
 
 
@@ -62,9 +58,9 @@ if __name__ == "__main__":
     	.groupby("DISTRICT").agg(concat_ws(", ", collect_list(join_df.frequent_crime_types)))\
     	.show()
 
-
     #4 lat - широта координаты района, расчитанная как среднее по всем широтам инцидентов
+    # И
     #5 ng - долгота координаты района, расчитанная как среднее по всем долготам инцидентов
-    crimeFacts.groupBy("DISTRICT").agg(mean(crimeFacts.Lat).alias("Lat_m"),
-                                       mean(crimeFacts.Long).alias("Long_m"))\
+    crimeData.groupBy("DISTRICT").agg(mean(crimeData.Lat).alias("Lat_m"),
+                                       mean(crimeData.Long).alias("Long_m"))\
     	.select("DISTRICT", "Lat_m", "Long_m").distinct().show()
