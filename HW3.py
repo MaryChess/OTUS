@@ -58,9 +58,9 @@ if __name__ == "__main__":
     	.groupby("DISTRICT").agg(concat_ws(", ", collect_list(join_df.frequent_crime_types)))\
     	.show()
 
-    #4 lat - широта координаты района, расчитанная как среднее по всем широтам инцидентов
+    #4. lat - широта координаты района, расчитанная как среднее по всем широтам инцидентов
     # И
-    #5 ng - долгота координаты района, расчитанная как среднее по всем долготам инцидентов
+    #5. Lng - долгота координаты района, расчитанная как среднее по всем долготам инцидентов
     crimeData.groupBy("DISTRICT").agg(mean(crimeData.Lat).alias("Lat_m"),
                                        mean(crimeData.Long).alias("Long_m"))\
     	.select("DISTRICT", "Lat_m", "Long_m").distinct().show()
